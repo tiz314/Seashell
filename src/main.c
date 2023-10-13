@@ -36,16 +36,34 @@ int main(int argc, const char *argv[])
         {
             argsNum = countArgs(userInput);
             inputArgs = (char **)realloc(inputArgs, sizeof(char *) * argsNum);
+            
 
             splitInput(inputArgs, userInput);
 
             if (!strcmp(inputArgs[0], "cd"))
             {
+                chdir(inputArgs[1]);
+                getcwd(currentDirectory, sizeof(currentDirectory));
             }
             else if (!strcmp(inputArgs[0], "path"))
             {
-                for(int i = 1; i < argsNum; i++){
-                    
+                for (int i = 1; i < argsNum; i++)
+                {
+                    if (inputArgs[i][0] != '/')
+                    {
+                        printf("Error in arguments\n");
+                        break;
+                    }
+                    else
+                    {
+                        binPaths[i] = strdup(inputArgs[i]);
+                        pathElements++;
+                    }
+                }
+
+                for (int i = 0; i < pathElements; i++)
+                {
+                    printf("%s\n", binPaths[i]);
                 }
             }
             else
@@ -66,6 +84,7 @@ int main(int argc, const char *argv[])
                         strcat(binPath, inputArgs[0]);
                         if (!access(binPath, X_OK))
                         {
+                            commandFound = 1;
                             __pid_t res = fork();
                             if (res < 0)
                             {
@@ -75,16 +94,17 @@ int main(int argc, const char *argv[])
                             {
                                 execv(binPath, inputArgs);
                             }
-                            else{
+                            else
+                            {
                                 int status;
                                 waitpid(res, &status, 0);
                             }
                         }
-                        else
-                        {
-                            printf("Command not found\n");
-                        }
                     }
+                    if (!commandFound)
+                    {
+                        printf("Command not found\n");
+                    }else commandFound = 0;
                 }
             }
         }
@@ -97,7 +117,7 @@ int main(int argc, const char *argv[])
 
 void printPrompt(char *currentDirectory)
 {
-    printf(ANSI_COLOR_BLUE "seashell: " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET "$ ", currentDirectory);
+    printf(ANSI_COLOR_BLUE "<seashell> " ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "$ ", currentDirectory);
 }
 
 void receiveLine(char *userInput, int size)
