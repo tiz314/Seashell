@@ -26,7 +26,7 @@ int main(int argc, const char *argv[])
 
     while (check)
     {
-        //printPrompt(currentDirectory);
+        printPrompt(currentDirectory);
         receiveLine(userInput, INPUT_SIZE);
         if (!strcmp(userInput, EXIT_COMMAND))
         {
@@ -44,6 +44,9 @@ int main(int argc, const char *argv[])
             }
             else if (!strcmp(inputArgs[0], "path"))
             {
+                for(int i = 1; i < argsNum; i++){
+                    
+                }
             }
             else
             {
@@ -61,17 +64,31 @@ int main(int argc, const char *argv[])
                         strcpy(binPath, binPaths[i]);
                         strcat(binPath, "/");
                         strcat(binPath, inputArgs[0]);
-                        if (!access(binPath, X_OK)){
-                            if(!fork()){
+                        if (!access(binPath, X_OK))
+                        {
+                            __pid_t res = fork();
+                            if (res < 0)
+                            {
+                                printf("Couldn't start command >:(\n");
+                            }
+                            else if (!res)
+                            {
                                 execv(binPath, inputArgs);
                             }
+                            else{
+                                int status;
+                                waitpid(res, &status, 0);
+                            }
+                        }
+                        else
+                        {
+                            printf("Command not found\n");
                         }
                     }
                 }
             }
         }
     }
-
 
     free(userInput);
 
