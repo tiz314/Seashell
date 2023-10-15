@@ -1,6 +1,7 @@
 #include "./headers/base.h"
 
-void printPrompt(char *currentDirectory);
+void printWelcome();
+void printPrompt(char *currentDirectory, char *hostname);
 void receiveLine(char *userInput, int size);
 int countArgs(char *userInput);
 void splitInput(char **inputArgs, char *userInput);
@@ -22,28 +23,42 @@ int main(int argc, const char *argv[])
 
     __uint8_t commandFound = 0;
 
-    FILE *historyFile = fopen(".history", "wa"); // TODO: enable append
-    if(historyFile == NULL) return 1;
+    char hostname[PATH_MAX];
+    gethostname(hostname, PATH_MAX);
+
+    FILE *historyFile;
+
+    time_t t = time(NULL); // adding timestamp to the history
+    struct tm tm = *localtime(&t);
 
     system("clear"); // just to clear the cli
+    printWelcome();
 
     while (check)
     {
-        printPrompt(currentDirectory);
+        printPrompt(currentDirectory, hostname);
         receiveLine(userInput, INPUT_SIZE);
-        if (!strcmp(userInput, EXIT_COMMAND))
+        if (!strcmp(userInput, EXIT_COMMAND)) // if the exit command is received
         {
             check = 0;
         }
         else
         {
+
+            historyFile = fopen(HISTORY_PATH, "a");
+            if (historyFile != NULL)
+            {
+                fprintf(historyFile, "%d-%02d-%02d %02d:%02d:%02d -> ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                fprintf(historyFile, "%s\n", userInput); // saving command in history
+                fclose(historyFile);
+            }
+            else printf("no");
+
             argsNum = countArgs(userInput);
 
             inputArgs = (char **)calloc(sizeof(char *), argsNum);
 
             splitInput(inputArgs, userInput);
-
-            fprintf(historyFile, "%s\n", userInput);
 
             if (!strcmp(inputArgs[0], "cd"))
             {
@@ -61,18 +76,37 @@ int main(int argc, const char *argv[])
                     }
                     else
                     {
-                        binPaths[i] = strdup(inputArgs[i]);
                         pathElements++;
+                        binPaths = (char **)realloc(binPaths, sizeof(char *) * pathElements);
+                        binPaths[pathElements - 1] = strdup(inputArgs[i]);
                     }
                 }
 
                 for (int i = 0; i < pathElements; i++)
                 {
-                    printf("%s\n", binPaths[i]);
+                    printf("%s; ", binPaths[i]);
                 }
+                printf("\n");
             }
             else if (!strcmp(inputArgs[0], "history"))
             {
+                FILE *historyFileRead = fopen(HISTORY_PATH, "r");
+                if (historyFileRead != NULL)
+                {
+                    char historyLine[INPUT_SIZE];
+                    while (fgets(historyLine, INPUT_SIZE, historyFileRead))
+                    {
+                        printf("%s", historyLine);
+                    }
+                }
+                else
+                {
+                    printf("No history file was found!\n");
+                }
+            }
+            else if (!strcmp(inputArgs[0], "about"))
+            {
+                printWelcome();
             }
             else
             {
@@ -84,9 +118,11 @@ int main(int argc, const char *argv[])
                 }
                 else
                 {
+
                     for (int i = 0; i < pathElements && !commandFound; i++)
                     {
-                        char *binPath = (char *)realloc(binPath, sizeof(char) * (strlen(binPaths[i]) + strlen(inputArgs[0])) + 2);
+
+                        char *binPath = (char *)calloc(sizeof(char), strlen(binPaths[i]) + strlen(inputArgs[0]) + 2);
                         strcpy(binPath, binPaths[i]);
                         strcat(binPath, "/");
                         strcat(binPath, inputArgs[0]);
@@ -122,14 +158,15 @@ int main(int argc, const char *argv[])
 
     free(userInput);
 
-    fclose(historyFile);
-
     return 0;
 }
 
-void printPrompt(char *currentDirectory)
+void printPrompt(char *currentDirectory, char *hostname)
 {
-    printf(ANSI_COLOR_BLUE "<seashell> " ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "$ ", currentDirectory);
+    char username[PATH_MAX];
+    getlogin_r(username, PATH_MAX);
+
+    printf(ANSI_COLOR_BLUE "<csh> %s" ANSI_COLOR_RESET ":" ANSI_COLOR_BLUE "%s " ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "$ ", username, hostname, currentDirectory);
 }
 
 void receiveLine(char *userInput, int size)
@@ -174,4 +211,27 @@ void splitInput(char **inputArgs, char *userInput)
         strcpy(inputArgs[i++], tok);
         tok = end;
     }
+}
+
+void printWelcome()
+{
+    /*
+       /\
+      {.-}
+     ;_.-'\
+    {    _.}_
+     \.-' /  `,
+      \  |    /
+       \ |  ,/
+        \|_/
+    */
+
+    printf("\n\n" ANSI_COLOR_CYAN "   /\\\n");
+    printf("  {.-}\n");
+    printf(" ;_.-'\\\n");
+    printf("{    _.}_     " ANSI_COLOR_RESET "Sea(C)shell\n");
+    printf(ANSI_COLOR_CYAN " \\.-' /  `,  \n");
+    printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a shell emulator\n");
+    printf(ANSI_COLOR_CYAN "   \\ |  ,/    " ANSI_COLOR_RESET "Made with <3 by Tiz314\n");
+    printf(ANSI_COLOR_CYAN "    \\|_/      " ANSI_COLOR_RESET "https://github.com/tiz314/seashell\n\n\n");
 }

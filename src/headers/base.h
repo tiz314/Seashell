@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <time.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -16,3 +17,4 @@
 #define EXIT_COMMAND "exit"
 #define BASE_PATH "/bin"
 #define PATH_MAX 90
+#define HISTORY_PATH "~/.csh_history"
