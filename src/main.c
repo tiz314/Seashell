@@ -22,6 +22,9 @@ int main(int argc, const char *argv[])
 
     __uint8_t commandFound = 0;
 
+    FILE *historyFile = fopen(".history", "wa"); // TODO: enable append
+    if(historyFile == NULL) return 1;
+
     system("clear"); // just to clear the cli
 
     while (check)
@@ -35,10 +38,12 @@ int main(int argc, const char *argv[])
         else
         {
             argsNum = countArgs(userInput);
-            inputArgs = (char **)realloc(inputArgs, sizeof(char *) * argsNum);
-            
+
+            inputArgs = (char **)calloc(sizeof(char *), argsNum);
 
             splitInput(inputArgs, userInput);
+
+            fprintf(historyFile, "%s\n", userInput);
 
             if (!strcmp(inputArgs[0], "cd"))
             {
@@ -65,6 +70,9 @@ int main(int argc, const char *argv[])
                 {
                     printf("%s\n", binPaths[i]);
                 }
+            }
+            else if (!strcmp(inputArgs[0], "history"))
+            {
             }
             else
             {
@@ -104,13 +112,17 @@ int main(int argc, const char *argv[])
                     if (!commandFound)
                     {
                         printf("Command not found\n");
-                    }else commandFound = 0;
+                    }
+                    else
+                        commandFound = 0;
                 }
             }
         }
     }
 
     free(userInput);
+
+    fclose(historyFile);
 
     return 0;
 }
