@@ -39,10 +39,23 @@ int main(int argc, const char *argv[])
     system("clear"); // just to clear the cli
     printWelcome();
 
+    system("/bin/stty raw");
+    char receivedChar;
+
     while (check)
     {
         printPrompt(currentDirectory, hostname);
-        receiveLine(userInput, INPUT_SIZE);
+
+        strcpy(userInput, "");
+        do{
+            receivedChar = getchar();
+            userInput[strlen(userInput) - 1] = receivedChar;
+        }
+        while(receivedChar != '\n');
+        userInput[strlen(userInput) - 1] = 0;
+        
+
+
         if (!strcmp(userInput, EXIT_COMMAND)) // if the exit command is received
         {
             check = 0;
@@ -158,7 +171,7 @@ int main(int argc, const char *argv[])
                     for (int i = 0; i < pathElements && !commandFound; i++)
                     {
 
-                        char *binPath = (char *)realloc(binPath, sizeof(char) * (strlen(binPaths[i]) + strlen(inputArgs[0]) + 2));
+                        char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(inputArgs[0]) + 2));
                         strcpy(binPath, binPaths[i]);
                         strcat(binPath, "/");
                         strcat(binPath, inputArgs[0]);
