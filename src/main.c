@@ -31,6 +31,11 @@ int main(int argc, const char *argv[])
     time_t t = time(NULL); // adding timestamp to the history
     struct tm tm = *localtime(&t);
 
+    struct passwd *pw = getpwuid(getuid());
+    char *historyPathname = (char *)calloc(sizeof(char), PATH_MAX);
+    strcpy(historyPathname, pw->pw_dir);
+    strcat(historyPathname, HISTORY_FILENAME); // defining history file path
+
     system("clear"); // just to clear the cli
     printWelcome();
 
@@ -44,18 +49,31 @@ int main(int argc, const char *argv[])
         }
         else
         {
-
-            historyFile = fopen(HISTORY_PATH, "a");
+        logCommand:
+            historyFile = fopen(historyPathname, "a");
             if (historyFile != NULL)
             {
                 fprintf(historyFile, "%d-%02d-%02d %02d:%02d:%02d -> ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 fprintf(historyFile, "%s\n", userInput); // saving command in history
                 fclose(historyFile);
             }
-            else printf("no");
+            else
+            {
+                historyFile = fopen(historyPathname, "w");
+                fclose(historyFile);
+                goto logCommand;
+            }
 
-            argsNum = countArgs(userInput);
+            if (inputArgs != NULL)
+            { // if previous commands were run, freeing memory
+                for (int i = 0; i < argsNum; i++)
+                {
+                    free(inputArgs[i]);
+                }
+                free(inputArgs);
+            }
 
+            argsNum = countArgs(userInput); // counting received arguments
             inputArgs = (char **)calloc(sizeof(char *), argsNum);
 
             splitInput(inputArgs, userInput);
@@ -90,7 +108,7 @@ int main(int argc, const char *argv[])
             }
             else if (!strcmp(inputArgs[0], "history"))
             {
-                FILE *historyFileRead = fopen(HISTORY_PATH, "r");
+                FILE *historyFileRead = fopen(historyPathname, "r");
                 if (historyFileRead != NULL)
                 {
                     char historyLine[INPUT_SIZE];
@@ -110,11 +128,29 @@ int main(int argc, const char *argv[])
             }
             else
             {
-                if (inputArgs[0][0] == '/')
+                if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.')
                 {
-                }
-                else if (inputArgs[0][0] == '.')
-                {
+                    if (!access(inputArgs[0], X_OK))
+                    {
+                        __pid_t res = fork();
+                        if (res < 0)
+                        {
+                            printf("Couldn't start command >:(\n");
+                        }
+                        else if (!res)
+                        {
+                            execv(inputArgs[0], inputArgs);
+                        }
+                        else
+                        {
+                            int status;
+                            waitpid(res, &status, 0);
+                        }
+                    }
+                    else
+                    {
+                        printf("Command not found\n");
+                    }
                 }
                 else
                 {
@@ -122,7 +158,7 @@ int main(int argc, const char *argv[])
                     for (int i = 0; i < pathElements && !commandFound; i++)
                     {
 
-                        char *binPath = (char *)calloc(sizeof(char), strlen(binPaths[i]) + strlen(inputArgs[0]) + 2);
+                        char *binPath = (char *)realloc(binPath, sizeof(char) * (strlen(binPaths[i]) + strlen(inputArgs[0]) + 2));
                         strcpy(binPath, binPaths[i]);
                         strcat(binPath, "/");
                         strcat(binPath, inputArgs[0]);
@@ -157,6 +193,13 @@ int main(int argc, const char *argv[])
     }
 
     free(userInput);
+    free(historyPathname);
+
+    for (int i = 0; i < pathElements; i++)
+    {
+        free(binPaths[i]);
+    }
+    free(binPaths);
 
     return 0;
 }
