@@ -39,7 +39,7 @@ int main(int argc, const char *argv[])
     system("clear"); // just to clear the cli
     printWelcome();
 
-    system("/bin/stty raw");
+    system("stty raw -echo");
     char receivedChar;
 
     while (check)
@@ -47,14 +47,21 @@ int main(int argc, const char *argv[])
         printPrompt(currentDirectory, hostname);
 
         strcpy(userInput, "");
-        do{
+        do
+        {
             receivedChar = getchar();
-            userInput[strlen(userInput) - 1] = receivedChar;
-        }
-        while(receivedChar != '\n');
+            if (receivedChar != 10 && receivedChar != 13)
+            {
+                userInput[strlen(userInput) - 1] = receivedChar;
+                printf("%c", receivedChar);
+                printf("%s\n", userInput);
+                fflush(stdout);
+            }
+            else
+                break;
+        } while (1);
         userInput[strlen(userInput) - 1] = 0;
-        
-
+        printf("%c", 13);
 
         if (!strcmp(userInput, EXIT_COMMAND)) // if the exit command is received
         {
@@ -141,43 +148,13 @@ int main(int argc, const char *argv[])
             }
             else
             {
-                if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.')
+                printf("%s\n", userInput);
+                if (strlen(userInput) > 0)
                 {
-                    if (!access(inputArgs[0], X_OK))
+                    if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.')
                     {
-                        __pid_t res = fork();
-                        if (res < 0)
+                        if (!access(inputArgs[0], X_OK))
                         {
-                            printf("Couldn't start command >:(\n");
-                        }
-                        else if (!res)
-                        {
-                            execv(inputArgs[0], inputArgs);
-                        }
-                        else
-                        {
-                            int status;
-                            waitpid(res, &status, 0);
-                        }
-                    }
-                    else
-                    {
-                        printf("Command not found\n");
-                    }
-                }
-                else
-                {
-
-                    for (int i = 0; i < pathElements && !commandFound; i++)
-                    {
-
-                        char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(inputArgs[0]) + 2));
-                        strcpy(binPath, binPaths[i]);
-                        strcat(binPath, "/");
-                        strcat(binPath, inputArgs[0]);
-                        if (!access(binPath, X_OK))
-                        {
-                            commandFound = 1;
                             __pid_t res = fork();
                             if (res < 0)
                             {
@@ -185,7 +162,7 @@ int main(int argc, const char *argv[])
                             }
                             else if (!res)
                             {
-                                execv(binPath, inputArgs);
+                                execv(inputArgs[0], inputArgs);
                             }
                             else
                             {
@@ -193,13 +170,47 @@ int main(int argc, const char *argv[])
                                 waitpid(res, &status, 0);
                             }
                         }
-                    }
-                    if (!commandFound)
-                    {
-                        printf("Command not found\n");
+                        else
+                        {
+                            printf("Command not found\n");
+                        }
                     }
                     else
-                        commandFound = 0;
+                    {
+
+                        for (int i = 0; i < pathElements && !commandFound; i++)
+                        {
+
+                            char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(inputArgs[0]) + 2));
+                            strcpy(binPath, binPaths[i]);
+                            strcat(binPath, "/");
+                            strcat(binPath, inputArgs[0]);
+                            if (!access(binPath, X_OK))
+                            {
+                                commandFound = 1;
+                                __pid_t res = fork();
+                                if (res < 0)
+                                {
+                                    printf("Couldn't start command >:(\n");
+                                }
+                                else if (!res)
+                                {
+                                    execv(binPath, inputArgs);
+                                }
+                                else
+                                {
+                                    int status;
+                                    waitpid(res, &status, 0);
+                                }
+                            }
+                        }
+                        if (!commandFound)
+                        {
+                            printf("Command not found\n");
+                        }
+                        else
+                            commandFound = 0;
+                    }
                 }
             }
         }
@@ -222,7 +233,7 @@ void printPrompt(char *currentDirectory, char *hostname)
     char username[PATH_MAX];
     getlogin_r(username, PATH_MAX);
 
-    printf(ANSI_COLOR_BLUE "<csh> %s" ANSI_COLOR_RESET ":" ANSI_COLOR_BLUE "%s " ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "$ ", username, hostname, currentDirectory);
+    printf(ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET ":" ANSI_COLOR_BLUE "%s " ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "$ ", username, hostname, currentDirectory);
 }
 
 void receiveLine(char *userInput, int size)
