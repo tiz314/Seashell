@@ -39,29 +39,42 @@ int main(int argc, const char *argv[])
     system("clear"); // just to clear the cli
     printWelcome();
 
-    system("stty raw -echo");
     char receivedChar;
 
     while (check)
     {
         printPrompt(currentDirectory, hostname);
 
-        strcpy(userInput, "");
+        // strcpy(userInput, "");
+        system("stty raw -echo");
+        int i = 0;
         do
         {
-            receivedChar = getchar();
-            if (receivedChar != 10 && receivedChar != 13)
+            receivedChar = getc(stdin);
+            if (receivedChar == 127)
             {
-                userInput[strlen(userInput) - 1] = receivedChar;
+                if (i > 0)
+                {
+                    userInput[i--] = 0;
+                    printf("\b \b");
+                }
+            }
+            if(receivedChar == 12){
+                system("clear");
+                printPrompt(currentDirectory, hostname);
+            }
+            else if (receivedChar != 10 && receivedChar != 13)
+            {
+                userInput[i++] = receivedChar;
                 printf("%c", receivedChar);
-                printf("%s\n", userInput);
                 fflush(stdout);
             }
             else
                 break;
         } while (1);
-        userInput[strlen(userInput) - 1] = 0;
-        printf("%c", 13);
+        userInput[i] = 0;
+        printf("%c\n", 13);
+        system("stty cooked echo");
 
         if (!strcmp(userInput, EXIT_COMMAND)) // if the exit command is received
         {
@@ -148,7 +161,6 @@ int main(int argc, const char *argv[])
             }
             else
             {
-                printf("%s\n", userInput);
                 if (strlen(userInput) > 0)
                 {
                     if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.')
@@ -215,6 +227,8 @@ int main(int argc, const char *argv[])
             }
         }
     }
+
+    // printf("%c%c", 12, 13);
 
     free(userInput);
     free(historyPathname);
