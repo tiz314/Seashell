@@ -43,9 +43,9 @@ int main(int argc, const char *argv[])
 
     while (check)
     {
+    newCommand:
         printPrompt(currentDirectory, hostname);
 
-        // strcpy(userInput, "");
         system("stty raw -echo");
         int i = 0;
         do
@@ -59,7 +59,14 @@ int main(int argc, const char *argv[])
                     printf("\b \b");
                 }
             }
-            if(receivedChar == 12){
+            else if (receivedChar == 3)
+            {
+                system("stty cooked echo");
+                printf("\n");
+                goto newCommand;
+            }
+            else if (receivedChar == 12)
+            {
                 system("clear");
                 printPrompt(currentDirectory, hostname);
             }
@@ -180,6 +187,7 @@ int main(int argc, const char *argv[])
                             {
                                 int status;
                                 waitpid(res, &status, 0);
+                                printf("%d\n", status);
                             }
                         }
                         else
@@ -205,9 +213,10 @@ int main(int argc, const char *argv[])
                                 {
                                     printf("Couldn't start command >:(\n");
                                 }
-                                else if (!res)
+                                else if (res == 0)
                                 {
                                     execv(binPath, inputArgs);
+                                    printf("Qui!\n");
                                 }
                                 else
                                 {
@@ -227,8 +236,6 @@ int main(int argc, const char *argv[])
             }
         }
     }
-
-    // printf("%c%c", 12, 13);
 
     free(userInput);
     free(historyPathname);
