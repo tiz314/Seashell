@@ -72,34 +72,30 @@ int main(int argc, const char *argv[])
             }
             else if (receivedChar == 27)
             {
-                receivedChar = getc(stdin);
-                if (receivedChar == 27)
-                {                             // Check if it's an escape sequence
-                    receivedChar = getchar(); // Read the next character
-                    if (receivedChar == '[')
-                    {
-                        receivedChar = getchar(); // Read the arrow key character
-                        printf("here");
+                receivedChar = getchar(); // Read the next character
+                if (receivedChar == '[')
+                {
+                    receivedChar = getchar(); // Read the arrow key character
 
-                        if (receivedChar == 'A')
+                    if (receivedChar == 'A')
+                    {
+                        // Up Arrow
+                    }
+                    else if (receivedChar == 'B')
+                    {
+                        // Down Arrow
+                    }
+                    else if (receivedChar == 'C')
+                    {
+                        // Right Arrow
+                    }
+                    else if (receivedChar == 'D')
+                    {
+                        // Left Arrow
+                        if (i > 0)
                         {
-                            // Up Arrow
-                            printf("Up Arrow Pressed\n");
-                        }
-                        else if (receivedChar == 'B')
-                        {
-                            // Down Arrow
-                            printf("Down Arrow Pressed\n");
-                        }
-                        else if (receivedChar == 'C')
-                        {
-                            // Right Arrow
-                            printf("Right Arrow Pressed\n");
-                        }
-                        else if (receivedChar == 'D')
-                        {
-                            // Left Arrow
-                            printf("Left Arrow Pressed\n");
+                            userInput[i--] = 0;
+                            printf("\b");
                         }
                     }
                 }
