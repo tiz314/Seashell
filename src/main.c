@@ -6,6 +6,8 @@ void receiveLine(char *userInput, int size);
 int countArgs(char *userInput);
 void splitInput(char **inputArgs, char *userInput);
 
+void loadHistory(char **historyLines, char **historyPathname);
+
 int main(int argc, const char *argv[])
 {
     __uint8_t check = 1;
@@ -40,6 +42,9 @@ int main(int argc, const char *argv[])
     printWelcome();
 
     char receivedChar;
+
+    char **historyLines;
+    __uint128_t historyNavigationPos; // to track position in the history navigation
 
     while (check)
     {
@@ -97,6 +102,8 @@ int main(int argc, const char *argv[])
                             userInput[i--] = 0;
                             printf("\b");
                         }
+                        else
+                            printf("\a");
                     }
                 }
             }
@@ -109,9 +116,12 @@ int main(int argc, const char *argv[])
             else
                 break;
         } while (1);
+
         userInput[i] = 0;
         printf("%c\n", 13);
         system("stty cooked echo");
+
+        historyNavigationPos = 0; // resetting history navigation
 
         if (!strcmp(userInput, EXIT_COMMAND)) // if the exit command is received
         {
@@ -126,6 +136,7 @@ int main(int argc, const char *argv[])
                 fprintf(historyFile, "%d-%02d-%02d %02d:%02d:%02d -> ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 fprintf(historyFile, "%s\n", userInput); // saving command in history
                 fclose(historyFile);
+                loadHistory(historyLines, historyPathname);
             }
             else
             {
@@ -352,4 +363,23 @@ void printWelcome()
     printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a shell emulator\n");
     printf(ANSI_COLOR_CYAN "   \\ |  ,/    " ANSI_COLOR_RESET "Made with <3 by Tiz314\n");
     printf(ANSI_COLOR_CYAN "    \\|_/      " ANSI_COLOR_RESET "https://github.com/tiz314/seashell\n\n\n");
+}
+
+void loadHistory(char **historyLines, char **historyPathname)
+{
+    FILE *historyFileRead = fopen(historyPathname, "r");
+    __uint128_t historyLinesCounter = 0;
+    if (historyFileRead != NULL)
+    {
+        char historyLine[INPUT_SIZE];
+        while (fgets(historyLine, INPUT_SIZE, historyFileRead))
+        {
+            historyLinesCounter++;
+        }
+        printf("");
+    }
+    else
+    {
+        printf("No history file was found!\n");
+    }
 }

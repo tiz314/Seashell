@@ -1,2 +1,0 @@
-echo "portanna"
-exit
