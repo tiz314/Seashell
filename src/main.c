@@ -70,6 +70,40 @@ int main(int argc, const char *argv[])
                 system("clear");
                 printPrompt(currentDirectory, hostname);
             }
+            else if (receivedChar == 27)
+            {
+                receivedChar = getc(stdin);
+                if (receivedChar == 27)
+                {                             // Check if it's an escape sequence
+                    receivedChar = getchar(); // Read the next character
+                    if (receivedChar == '[')
+                    {
+                        receivedChar = getchar(); // Read the arrow key character
+                        printf("here");
+
+                        if (receivedChar == 'A')
+                        {
+                            // Up Arrow
+                            printf("Up Arrow Pressed\n");
+                        }
+                        else if (receivedChar == 'B')
+                        {
+                            // Down Arrow
+                            printf("Down Arrow Pressed\n");
+                        }
+                        else if (receivedChar == 'C')
+                        {
+                            // Right Arrow
+                            printf("Right Arrow Pressed\n");
+                        }
+                        else if (receivedChar == 'D')
+                        {
+                            // Left Arrow
+                            printf("Left Arrow Pressed\n");
+                        }
+                    }
+                }
+            }
             else if (receivedChar != 10 && receivedChar != 13)
             {
                 userInput[i++] = receivedChar;
@@ -187,7 +221,6 @@ int main(int argc, const char *argv[])
                             {
                                 int status;
                                 waitpid(res, &status, 0);
-                                printf("%d\n", status);
                             }
                         }
                         else
@@ -216,6 +249,7 @@ int main(int argc, const char *argv[])
                                 else if (res == 0)
                                 {
                                     execv(binPath, inputArgs);
+                                    exit(0);
                                     printf("Qui!\n");
                                 }
                                 else
