@@ -68,6 +68,7 @@ int main(int argc, const char *argv[])
             {
                 system("stty cooked echo");
                 printf("\n");
+                printf("To close the terminal, type 'exit'\n");
                 goto newCommand;
             }
             else if (receivedChar == 12)
@@ -93,6 +94,11 @@ int main(int argc, const char *argv[])
                     else if (receivedChar == 'C')
                     {
                         // Right Arrow
+                        if (i < strlen(userInput))
+                        {
+                            printf(" ");
+                            i++;
+                        }
                     }
                     else if (receivedChar == 'D')
                     {
