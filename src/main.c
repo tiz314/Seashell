@@ -56,7 +56,7 @@ int main(int argc, const char *argv[])
         do
         {
             receivedChar = getc(stdin);
-            if (receivedChar == 127)
+            if (receivedChar == 127) // delete char
             {
                 if (i > 0)
                 {
@@ -64,19 +64,19 @@ int main(int argc, const char *argv[])
                     printf("\b \b");
                 }
             }
-            else if (receivedChar == 3)
+            else if (receivedChar == 3) // ctrl c
             {
                 system("stty cooked echo");
                 printf("\n");
                 printf("To close the terminal, type 'exit'\n");
                 goto newCommand;
             }
-            else if (receivedChar == 12)
+            else if (receivedChar == 12) // ctrl l
             {
                 system("clear");
                 printPrompt(currentDirectory, hostname);
             }
-            else if (receivedChar == 27)
+            else if (receivedChar == 27) // arrows
             {
                 receivedChar = getchar(); // Read the next character
                 if (receivedChar == '[')
@@ -96,7 +96,7 @@ int main(int argc, const char *argv[])
                         // Right Arrow
                         if (i < strlen(userInput))
                         {
-                            printf(" ");
+                            printf("%c", userInput[i]);
                             i++;
                         }
                     }
@@ -105,7 +105,7 @@ int main(int argc, const char *argv[])
                         // Left Arrow
                         if (i > 0)
                         {
-                            userInput[i--] = 0;
+                            i--;
                             printf("\b");
                         }
                         else
@@ -115,8 +115,14 @@ int main(int argc, const char *argv[])
             }
             else if (receivedChar != 10 && receivedChar != 13)
             {
-                userInput[i++] = receivedChar;
-                printf("%c", receivedChar);
+                for(int j = strlen(userInput) + 1; j > i; j--){
+                    userInput[j] = userInput[j - 1];
+                }
+                userInput[i] = receivedChar;
+                for(int j = i; j < strlen(userInput); j++){
+                    printf("%c", userInput[j]);
+                }
+                i++;
                 fflush(stdout);
             }
             else
@@ -366,7 +372,7 @@ void printWelcome()
     printf(" ;_.-'\\\n");
     printf("{    _.}_     " ANSI_COLOR_RESET "Sea(C)shell\n");
     printf(ANSI_COLOR_CYAN " \\.-' /  `,  \n");
-    printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a shell emulator\n");
+    printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a Bash Shell emulator\n");
     printf(ANSI_COLOR_CYAN "   \\ |  ,/    " ANSI_COLOR_RESET "Made with <3 by Tiz314\n");
     printf(ANSI_COLOR_CYAN "    \\|_/      " ANSI_COLOR_RESET "https://github.com/tiz314/seashell\n\n\n");
 }
