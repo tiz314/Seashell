@@ -8,6 +8,9 @@ void splitInput(char **inputArgs, char *userInput);
 
 void loadHistory(char **historyLines, char **historyPathname);
 
+
+void addCharInWord(char *userInput, int i, char new);
+
 int main(int argc, const char *argv[])
 {
     __uint8_t check = 1;
@@ -96,8 +99,7 @@ int main(int argc, const char *argv[])
                         // Right Arrow
                         if (i < strlen(userInput))
                         {
-                            printf(" ");
-                            i++;
+                            printf("%c", userInput[i++]);
                         }
                     }
                     else if (receivedChar == 'D')
@@ -105,7 +107,7 @@ int main(int argc, const char *argv[])
                         // Left Arrow
                         if (i > 0)
                         {
-                            userInput[i--] = 0;
+                            i--;
                             printf("\b");
                         }
                         else
@@ -115,7 +117,17 @@ int main(int argc, const char *argv[])
             }
             else if (receivedChar != 10 && receivedChar != 13)
             {
-                userInput[i++] = receivedChar;
+                if(i < strlen(userInput)){
+                    addCharInWord(userInput, i, receivedChar);
+                    i++;
+                    for(int j = i; j < strlen(userInput); j++){
+                        printf("%c", userInput[j]);
+                    }
+                    for(int j = i; j < i; j++){
+                        printf("\b");
+                    }
+                }
+                else userInput[i++] = receivedChar;
                 printf("%c", receivedChar);
                 fflush(stdout);
             }
@@ -124,6 +136,7 @@ int main(int argc, const char *argv[])
         } while (1);
 
         userInput[i] = 0;
+        i = 0; // resetting input length
         printf("%c\n", 13);
         system("stty cooked echo");
 
@@ -263,7 +276,6 @@ int main(int argc, const char *argv[])
                                 {
                                     execv(binPath, inputArgs);
                                     exit(0);
-                                    printf("Qui!\n");
                                 }
                                 else
                                 {
@@ -346,6 +358,13 @@ void splitInput(char **inputArgs, char *userInput)
         strcpy(inputArgs[i++], tok);
         tok = end;
     }
+}
+
+void addCharInWord(char *userInput, int i, char new){
+    for(int j = strlen(userInput); j > i; j--){
+        userInput[j] = userInput[j - 1];
+    }
+    userInput[i] = new;
 }
 
 void printWelcome()
