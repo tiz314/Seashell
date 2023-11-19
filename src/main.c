@@ -8,7 +8,6 @@ void splitInput(char **inputArgs, char *userInput);
 
 void loadHistory(char **historyLines, char **historyPathname);
 
-
 void addCharInWord(char *userInput, int i, char new);
 
 int main(int argc, const char *argv[])
@@ -54,32 +53,52 @@ int main(int argc, const char *argv[])
     newCommand:
         printPrompt(currentDirectory, hostname);
 
+        for (int j = 0; j < strlen(userInput); j++)
+        {
+            userInput[j] = 0;
+        }
+
         system("stty raw -echo");
         int i = 0;
         do
         {
             receivedChar = getc(stdin);
-            if (receivedChar == 127)
+            if (receivedChar == 127) // delete char
             {
                 if (i > 0)
                 {
-                    userInput[i--] = 0;
-                    printf("\b \b");
+                    if (i < strlen(userInput))
+                    {
+                        int offset = strlen(userInput) - i - 1;
+                        for(int j = i - 1; j < strlen(userInput); j++){
+                            userInput[j] = userInput[j + 1];
+                            printf("%c", userInput[j]);
+                        }
+                        printf(" ");
+                        for(int j = 0; j < offset; j++){
+                            printf("\b");
+                        }
+                    }
+                    else
+                    {
+                        userInput[--i] = 0;
+                        printf("\b \b");
+                    }
                 }
             }
-            else if (receivedChar == 3)
+            else if (receivedChar == 3) // ctrl c
             {
                 system("stty cooked echo");
                 printf("\n");
                 printf("To close the terminal, type 'exit'\n");
                 goto newCommand;
             }
-            else if (receivedChar == 12)
+            else if (receivedChar == 12) // ctrl l
             {
                 system("clear");
                 printPrompt(currentDirectory, hostname);
             }
-            else if (receivedChar == 27)
+            else if (receivedChar == 27) // arrows
             {
                 receivedChar = getchar(); // Read the next character
                 if (receivedChar == '[')
@@ -99,7 +118,8 @@ int main(int argc, const char *argv[])
                         // Right Arrow
                         if (i < strlen(userInput))
                         {
-                            printf("%c", userInput[i++]);
+                            printf("%c", userInput[i]);
+                            i++;
                         }
                     }
                     else if (receivedChar == 'D')
@@ -117,18 +137,24 @@ int main(int argc, const char *argv[])
             }
             else if (receivedChar != 10 && receivedChar != 13)
             {
-                if(i < strlen(userInput)){
-                    addCharInWord(userInput, i, receivedChar);
-                    i++;
-                    for(int j = i; j < strlen(userInput); j++){
-                        printf("%c", userInput[j]);
-                    }
-                    for(int j = i; j < i; j++){
+                for (int j = strlen(userInput) + 1; j > i; j--) // shifting chars for the newly inserted one
+                {
+                    userInput[j] = userInput[j - 1];
+                }
+                userInput[i] = receivedChar;
+                int offset = strlen(userInput) - i; // calculating the offset between insertion position and last command char
+                for (int j = i; j < strlen(userInput); j++)
+                {
+                    printf("%c", userInput[j]); // reprinting the rest of the command, after the new char
+                }
+                i++;
+                if (offset > 1) // eventually repositioning cursor after the new char
+                {
+                    for (int j = 0; j < offset - 1; j++)
+                    {
                         printf("\b");
                     }
                 }
-                else userInput[i++] = receivedChar;
-                printf("%c", receivedChar);
                 fflush(stdout);
             }
             else
@@ -136,7 +162,6 @@ int main(int argc, const char *argv[])
         } while (1);
 
         userInput[i] = 0;
-        i = 0; // resetting input length
         printf("%c\n", 13);
         system("stty cooked echo");
 
@@ -251,7 +276,7 @@ int main(int argc, const char *argv[])
                         }
                         else
                         {
-                            printf("Command not found\n");
+                            printf("%s> Command not found\n", userInput);
                         }
                     }
                     else
@@ -286,7 +311,7 @@ int main(int argc, const char *argv[])
                         }
                         if (!commandFound)
                         {
-                            printf("Command not found\n");
+                            printf("%s> Command not found\n", userInput);
                         }
                         else
                             commandFound = 0;
@@ -360,8 +385,10 @@ void splitInput(char **inputArgs, char *userInput)
     }
 }
 
-void addCharInWord(char *userInput, int i, char new){
-    for(int j = strlen(userInput); j > i; j--){
+void addCharInWord(char *userInput, int i, char new)
+{
+    for (int j = strlen(userInput); j > i; j--)
+    {
         userInput[j] = userInput[j - 1];
     }
     userInput[i] = new;
@@ -385,7 +412,7 @@ void printWelcome()
     printf(" ;_.-'\\\n");
     printf("{    _.}_     " ANSI_COLOR_RESET "Sea(C)shell\n");
     printf(ANSI_COLOR_CYAN " \\.-' /  `,  \n");
-    printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a shell emulator\n");
+    printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a Bash Shell emulator\n");
     printf(ANSI_COLOR_CYAN "   \\ |  ,/    " ANSI_COLOR_RESET "Made with <3 by Tiz314\n");
     printf(ANSI_COLOR_CYAN "    \\|_/      " ANSI_COLOR_RESET "https://github.com/tiz314/seashell\n\n\n");
 }
