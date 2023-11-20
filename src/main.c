@@ -41,7 +41,9 @@ int main(int argc, const char *argv[])
     strcat(historyPathname, HISTORY_FILENAME); // defining history file path
 
     system("clear"); // just to clear the cli
-    printWelcome();
+    if (!(argc > 1 && !strcmp(argv[1], "-q"))){
+        printWelcome();
+    }
 
     char receivedChar;
 
@@ -70,12 +72,14 @@ int main(int argc, const char *argv[])
                     if (i < strlen(userInput))
                     {
                         int offset = strlen(userInput) - i - 1;
-                        for(int j = i - 1; j < strlen(userInput); j++){
+                        for (int j = i - 1; j < strlen(userInput); j++)
+                        {
                             userInput[j] = userInput[j + 1];
                             printf("%c", userInput[j]);
                         }
                         printf(" ");
-                        for(int j = 0; j < offset; j++){
+                        for (int j = 0; j < offset; j++)
+                        {
                             printf("\b");
                         }
                     }
