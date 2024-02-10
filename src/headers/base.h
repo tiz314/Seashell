@@ -20,3 +20,4 @@
 #define BASE_PATH "/bin"
 #define PATH_MAX 90
 #define HISTORY_FILENAME "/.csh_history"
+#define CONFIG_FILENAME "/.csh_config"

@@ -1,18 +1,10 @@
-#include "./headers/base.h"
-
-void printWelcome();
-void printPrompt(char *currentDirectory, char *hostname);
-void receiveLine(char *userInput, int size);
-int countArgs(char *userInput);
-void splitInput(char **inputArgs, char *userInput);
-
-void loadHistory(char **historyLines, char **historyPathname);
-
-void addCharInWord(char *userInput, int i, char new);
+#include "./headers/history.h"
+#include "./headers/cli.h"
+#include "./headers/config.h"
 
 int main(int argc, const char *argv[])
 {
-    __uint8_t check = 1;
+    __uint8_t check = 1;                                        // looping in the shell
     char *userInput = (char *)calloc(sizeof(char), INPUT_SIZE); // user text input
 
     __uint8_t pathElements = 1;
@@ -31,31 +23,47 @@ int main(int argc, const char *argv[])
     gethostname(hostname, PATH_MAX);
 
     FILE *historyFile;
+    char historyLine[INPUT_SIZE + 30]; // history line buffer
+    int historyLength;
 
-    time_t t = time(NULL); // adding timestamp to the history
-    struct tm tm = *localtime(&t);
+    time_t t;
+    struct tm tm;
 
     struct passwd *pw = getpwuid(getuid());
     char *historyPathname = (char *)calloc(sizeof(char), PATH_MAX);
     strcpy(historyPathname, pw->pw_dir);
-    strcat(historyPathname, HISTORY_FILENAME); // defining history file path
+    strcat(historyPathname, HISTORY_FILENAME); // defining history file path, inside the user's home directory
 
+    // loading config file
+
+
+    // end loading config file
+
+
+    // starting all the fancy things
     system("clear"); // just to clear the cli
-    if (!(argc > 1 && !strcmp(argv[1], "-q"))){
+    if (!(argc > 1 && !strcmp(argv[1], "-q")))
+    {
         printWelcome();
     }
 
     char receivedChar;
 
-    char **historyLines;
-    __uint128_t historyNavigationPos; // to track position in the history navigation
+    __uint128_t historyNavigationPos = 0; // to track position in the history navigation
 
     while (check)
     {
-    newCommand:
+        historyLength = 0;
+        historyFile = fopen(historyPathname, "r");
+        while (fgets(historyLine, INPUT_SIZE + 30, historyFile)) // counting history lines
+        {
+            historyLength++;
+        }
+        fclose(historyFile);
+    newCommand: // maybe it can be removed, but i'm not sure if I want to do that (hihihi)
         printPrompt(currentDirectory, hostname);
 
-        for (int j = 0; j < strlen(userInput); j++)
+        for (int j = 0; j < INPUT_SIZE; j++)
         {
             userInput[j] = 0;
         }
@@ -64,6 +72,7 @@ int main(int argc, const char *argv[])
         int i = 0;
         do
         {
+            historyFile = fopen(historyPathname, "r"); // to eventually consult the history
             receivedChar = getc(stdin);
             if (receivedChar == 127) // delete char
             {
@@ -71,23 +80,41 @@ int main(int argc, const char *argv[])
                 {
                     if (i < strlen(userInput))
                     {
-                        int offset = strlen(userInput) - i - 1;
+                        printf("\b");
+                        int offset = strlen(userInput) - i;
                         for (int j = i - 1; j < strlen(userInput); j++)
                         {
                             userInput[j] = userInput[j + 1];
                             printf("%c", userInput[j]);
                         }
                         printf(" ");
-                        for (int j = 0; j < offset; j++)
+                        for (int j = 0; j < offset + 1; j++)
                         {
                             printf("\b");
                         }
+                        i--;
                     }
                     else
                     {
                         userInput[--i] = 0;
                         printf("\b \b");
                     }
+                }
+            }
+            else if (receivedChar == 126)
+            { // if del char is received
+                for (int j = i; j < strlen(userInput); j++)
+                {
+                    userInput[j] = userInput[j + 1];
+                }
+                for (int j = i; j < strlen(userInput); j++)
+                {
+                    printf("%c", userInput[j]);
+                }
+                printf(" ");
+                for (int j = 0; j < strlen(userInput) - i + 1; j++)
+                {
+                    printf("\b");
                 }
             }
             else if (receivedChar == 3) // ctrl c
@@ -112,10 +139,12 @@ int main(int argc, const char *argv[])
                     if (receivedChar == 'A')
                     {
                         // Up Arrow
+                        navigateHistory(&historyNavigationPos, historyFile, userInput, &i, historyLength, 1);
                     }
                     else if (receivedChar == 'B')
                     {
                         // Down Arrow
+                        navigateHistory(&historyNavigationPos, historyFile, userInput, &i, historyLength, 0);
                     }
                     else if (receivedChar == 'C')
                     {
@@ -162,10 +191,12 @@ int main(int argc, const char *argv[])
                 fflush(stdout);
             }
             else
+            {
                 break;
+                fclose(historyFile);
+            }
         } while (1);
 
-        userInput[i] = 0;
         printf("%c\n", 13);
         system("stty cooked echo");
 
@@ -178,19 +209,23 @@ int main(int argc, const char *argv[])
         else
         {
         logCommand:
-            historyFile = fopen(historyPathname, "a");
-            if (historyFile != NULL)
+            if (i > 0)
             {
-                fprintf(historyFile, "%d-%02d-%02d %02d:%02d:%02d -> ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-                fprintf(historyFile, "%s\n", userInput); // saving command in history
-                fclose(historyFile);
-                loadHistory(historyLines, historyPathname);
-            }
-            else
-            {
-                historyFile = fopen(historyPathname, "w");
-                fclose(historyFile);
-                goto logCommand;
+                historyFile = fopen(historyPathname, "a");
+                if (historyFile != NULL)
+                {
+                    t = time(NULL); // adding timestamp to the history
+                    tm = *localtime(&t);
+                    fprintf(historyFile, "%d-%02d-%02d %02d:%02d:%02d -> ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                    fprintf(historyFile, "%s\n", userInput); // saving command in history
+                    fclose(historyFile);
+                }
+                else
+                {
+                    historyFile = fopen(historyPathname, "w");
+                    fclose(historyFile);
+                    goto logCommand;
+                }
             }
 
             if (inputArgs != NULL)
@@ -237,18 +272,28 @@ int main(int argc, const char *argv[])
             }
             else if (!strcmp(inputArgs[0], "history"))
             {
-                FILE *historyFileRead = fopen(historyPathname, "r");
-                if (historyFileRead != NULL)
+                if (argsNum > 1)
                 {
-                    char historyLine[INPUT_SIZE];
-                    while (fgets(historyLine, INPUT_SIZE, historyFileRead))
+                    if (!strcmp(inputArgs[1], "-c"))
                     {
-                        printf("%s", historyLine);
+                        historyFile = fopen(historyPathname, "w");
+                        fclose(historyFile);
                     }
                 }
                 else
                 {
-                    printf("No history file was found!\n");
+                    historyFile = fopen(historyPathname, "r");
+                    if (historyFile != NULL)
+                    {
+                        while (fgets(historyLine, INPUT_SIZE + 30, historyFile))
+                        {
+                            printf("%s", historyLine);
+                        }
+                    }
+                    else
+                    {
+                        printf("No history file was found!\n");
+                    }
                 }
             }
             else if (!strcmp(inputArgs[0], "about"))
@@ -335,107 +380,4 @@ int main(int argc, const char *argv[])
     free(binPaths);
 
     return 0;
-}
-
-void printPrompt(char *currentDirectory, char *hostname)
-{
-    char username[PATH_MAX];
-    getlogin_r(username, PATH_MAX);
-
-    printf(ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET ":" ANSI_COLOR_BLUE "%s " ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "$ ", username, hostname, currentDirectory);
-}
-
-void receiveLine(char *userInput, int size)
-{
-    fgets(userInput, size, stdin);
-    __uint8_t length = strlen(userInput);
-    for (int i = 0; i < length; i++)
-    { // removing new line and eventually fix extra spaces for later parsing
-        if (userInput[i] == '\n')
-            userInput[i] = 0;
-        else if (i < length - 1 && userInput[i] == ' ' && userInput[i + 1] == ' ')
-        {
-            userInput[i] = 0;
-            break;
-        }
-    }
-}
-
-int countArgs(char *userInput)
-{
-    int counter = 0, check = 1;
-    for (int i = 0; userInput[i] != 0 && check; i++)
-    {
-        if (userInput[i] == ' ')
-        {
-            counter++;
-        }
-    }
-    return ++counter;
-}
-
-void splitInput(char **inputArgs, char *userInput)
-{
-    char *tok = userInput,
-         *end = userInput;
-    __uint8_t i = 0;
-
-    while (tok != NULL)
-    {
-        strsep(&end, " ");
-        inputArgs[i] = (char *)realloc(inputArgs[i], sizeof(char) * strlen(tok) + 1);
-        strcpy(inputArgs[i++], tok);
-        tok = end;
-    }
-}
-
-void addCharInWord(char *userInput, int i, char new)
-{
-    for (int j = strlen(userInput); j > i; j--)
-    {
-        userInput[j] = userInput[j - 1];
-    }
-    userInput[i] = new;
-}
-
-void printWelcome()
-{
-    /*
-       /\
-      {.-}
-     ;_.-'\
-    {    _.}_
-     \.-' /  `,
-      \  |    /
-       \ |  ,/
-        \|_/
-    */
-
-    printf("\n\n" ANSI_COLOR_CYAN "   /\\\n");
-    printf("  {.-}\n");
-    printf(" ;_.-'\\\n");
-    printf("{    _.}_     " ANSI_COLOR_RESET "Sea(C)shell\n");
-    printf(ANSI_COLOR_CYAN " \\.-' /  `,  \n");
-    printf(ANSI_COLOR_CYAN "  \\  |    /   " ANSI_COLOR_RESET "Just a Bash Shell emulator\n");
-    printf(ANSI_COLOR_CYAN "   \\ |  ,/    " ANSI_COLOR_RESET "Made with <3 by Tiz314\n");
-    printf(ANSI_COLOR_CYAN "    \\|_/      " ANSI_COLOR_RESET "https://github.com/tiz314/seashell\n\n\n");
-}
-
-void loadHistory(char **historyLines, char **historyPathname)
-{
-    FILE *historyFileRead = fopen(historyPathname, "r");
-    __uint128_t historyLinesCounter = 0;
-    if (historyFileRead != NULL)
-    {
-        char historyLine[INPUT_SIZE];
-        while (fgets(historyLine, INPUT_SIZE, historyFileRead))
-        {
-            historyLinesCounter++;
-        }
-        printf("");
-    }
-    else
-    {
-        printf("No history file was found!\n");
-    }
 }
