@@ -35,13 +35,31 @@ int main(int argc, const char *argv[])
     strcat(historyPathname, HISTORY_FILENAME); // defining history file path, inside the user's home directory
 
     // loading config file
-
+    alias *aliases = NULL;
+    int aliasCount = 0;
+    char *configPath = (char *)calloc(sizeof(char), PATH_MAX);
+    strcpy(configPath, pw->pw_dir);
+    strcat(configPath, CONFIG_FILENAME);
+    if (!loadAliases(configPath, &aliases, &aliasCount))
+    {
+        printf("Invalid config!\n");
+        return -1;
+    }
 
     // end loading config file
 
-
     // starting all the fancy things
     system("clear"); // just to clear the cli
+
+    if (argc > 1)
+    {
+        if (!strcmp(argv[1], "-h"))
+        {
+            printHelp();
+            return 0;
+        }
+    }
+
     if (!(argc > 1 && !strcmp(argv[1], "-q")))
     {
         printWelcome();
@@ -304,7 +322,7 @@ int main(int argc, const char *argv[])
             {
                 if (strlen(userInput) > 0)
                 {
-                    if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.')
+                    if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.') // if the command contains the absolute or relative path
                     {
                         if (!access(inputArgs[0], X_OK))
                         {
@@ -331,16 +349,41 @@ int main(int argc, const char *argv[])
                     else
                     {
 
-                        for (int i = 0; i < pathElements && !commandFound; i++)
-                        {
+                        char *realCommand = getAlias(aliases, aliasCount, inputArgs[0]);
+                        char *realCommandBackup = strdup(realCommand);
+                        char *anotherRealCommandBackup = strdup(realCommand);
 
-                            char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(inputArgs[0]) + 2));
+                        realCommand = strtok(realCommand, " ");
+
+                        for (int i = 0; i < pathElements && !commandFound; i++) // if only the command name, search in all paths
+                        {
+                            char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(realCommand) + 2)); // creating the asbolute path for the command
                             strcpy(binPath, binPaths[i]);
                             strcat(binPath, "/");
-                            strcat(binPath, inputArgs[0]);
+                            strcat(binPath, realCommand);
+
                             if (!access(binPath, X_OK))
                             {
                                 commandFound = 1;
+
+                                if (strcmp(realCommand, inputArgs[0]))
+                                { // if the received command has an alias, also update the arguments
+                                    realCommandBackup = strtok(realCommandBackup, " ");
+                                    int newArgs = 0;
+                                    while (realCommandBackup != NULL)
+                                    {
+                                        realCommandBackup = strtok(NULL, " ");
+                                        newArgs++;
+                                    }
+                                    inputArgs = (char **)realloc(inputArgs, sizeof(char *) * newArgs);
+                                    anotherRealCommandBackup = strtok(anotherRealCommandBackup, " ");
+                                    int i = 0;
+                                    while(anotherRealCommandBackup != NULL){
+                                        inputArgs[i++] = strdup(anotherRealCommandBackup);
+                                        anotherRealCommandBackup = strtok(NULL, " ");
+                                    }
+                                }
+
                                 __pid_t res = fork();
                                 if (res < 0)
                                 {
@@ -348,6 +391,7 @@ int main(int argc, const char *argv[])
                                 }
                                 else if (res == 0)
                                 {
+
                                     execv(binPath, inputArgs);
                                     exit(0);
                                 }
@@ -360,7 +404,7 @@ int main(int argc, const char *argv[])
                         }
                         if (!commandFound)
                         {
-                            printf("%s> Command not found\n", userInput);
+                            printf("%s> Command not found\n", realCommand);
                         }
                         else
                             commandFound = 0;
@@ -372,6 +416,7 @@ int main(int argc, const char *argv[])
 
     free(userInput);
     free(historyPathname);
+    unloadAliases(aliases, aliasCount);
 
     for (int i = 0; i < pathElements; i++)
     {

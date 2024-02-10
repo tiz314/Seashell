@@ -86,6 +86,12 @@ void printWelcome()
     printf(ANSI_COLOR_CYAN "    \\|_/      " ANSI_COLOR_RESET "https://github.com/tiz314/seashell\n\n\n");
 }
 
+void printHelp(){
+    printWelcome();
+    printf("Usage: seashell [OPTION]\n");
+    printf("\t-q: not show the intro message\n");
+}
+
 void rewritePrompt(char *userInput, int cursorPosition)
 {
     for (int j = 0; j < cursorPosition; j++)
