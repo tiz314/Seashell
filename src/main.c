@@ -262,6 +262,10 @@ int main(int argc, const char *argv[])
 
             if (!strcmp(inputArgs[0], "cd"))
             {
+                if (argsNum == 1)
+                {
+                    chdir(pw->pw_dir);
+                }
                 chdir(inputArgs[1]);
                 getcwd(currentDirectory, sizeof(currentDirectory));
             }
@@ -349,7 +353,7 @@ int main(int argc, const char *argv[])
                     else
                     {
 
-                        char *realCommand = getAlias(aliases, aliasCount, inputArgs[0]);
+                        char *realCommand = strdup(getAlias(aliases, aliasCount, inputArgs[0]));
                         char *realCommandBackup = strdup(realCommand);
                         char *anotherRealCommandBackup = strdup(realCommand);
 
@@ -365,24 +369,54 @@ int main(int argc, const char *argv[])
                             if (!access(binPath, X_OK))
                             {
                                 commandFound = 1;
-
+                                int newArgs = 0;
                                 if (strcmp(realCommand, inputArgs[0]))
                                 { // if the received command has an alias, also update the arguments
+
                                     realCommandBackup = strtok(realCommandBackup, " ");
-                                    int newArgs = 0;
                                     while (realCommandBackup != NULL)
                                     {
                                         realCommandBackup = strtok(NULL, " ");
                                         newArgs++;
                                     }
-                                    inputArgs = (char **)realloc(inputArgs, sizeof(char *) * newArgs);
+                                    char **tempOldArgs = (char **)calloc(sizeof(char *), argsNum);
+                                    for (i = 0; i < argsNum; i++)
+                                    {
+                                        tempOldArgs[i] = strdup(inputArgs[i]);
+                                    }
+                                    inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (newArgs + argsNum - 1));
                                     anotherRealCommandBackup = strtok(anotherRealCommandBackup, " ");
+
                                     int i = 0;
-                                    while(anotherRealCommandBackup != NULL){
+                                    while (anotherRealCommandBackup != NULL)
+                                    {
                                         inputArgs[i++] = strdup(anotherRealCommandBackup);
                                         anotherRealCommandBackup = strtok(NULL, " ");
                                     }
+
+                                    for (int i = 0; i < argsNum - 1; i++)
+                                    {
+                                        inputArgs[i + newArgs] = strdup(tempOldArgs[i + 1]);
+                                    }
+
+                                    for (i = 0; i < argsNum; i++)
+                                    {
+                                        free(tempOldArgs[i]);
+                                    }
+                                    free(tempOldArgs);
                                 }
+
+                                inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (argsNum + newArgs + 1));
+                                inputArgs[argsNum + newArgs] = NULL;
+                                /*printf("%d", argsNum + newArgs);
+
+                                printf("Command found at %s\n", binPath);
+                                int i = 0;
+                                while(inputArgs[i] != NULL){
+                                    printf("%s ", inputArgs[i]);
+                                    i++;
+                                }
+                                printf("\n");*/
 
                                 __pid_t res = fork();
                                 if (res < 0)

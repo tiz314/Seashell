@@ -2,7 +2,6 @@
 #include "./headers/base.h"
 #include <stdlib.h>
 
-
 FILE *openConfigFile(char *configPath);
 
 int loadAliases(char *configPath, alias **aliases, int *aliasCount)
@@ -21,7 +20,7 @@ int loadAliases(char *configPath, alias **aliases, int *aliasCount)
     }
     rewind(configFile);
     *aliases = (alias *)malloc(sizeof(alias) * *aliasCount);
-    int counter = 0; 
+    int counter = 0;
     while (fgets(line, INPUT_SIZE, configFile))
     {
         char intro[6];
@@ -34,9 +33,9 @@ int loadAliases(char *configPath, alias **aliases, int *aliasCount)
             alias = strtok(NULL, " "); // getting the command
             char *command = strtok(lineBackup, "=");
             command = strtok(NULL, "="); // getting the alias
-            if(command[strlen(command) - 1] == '\n')
+            if (command[strlen(command) - 1] == '\n')
                 command[strlen(command) - 1] = 0;
-            if(alias[strlen(alias) - 1] == '\n')
+            if (alias[strlen(alias) - 1] == '\n')
                 alias[strlen(alias) - 1] = 0; // removing the new line sometimes present
             (*aliases + counter)->command = strdup(command);
             (*aliases + counter)->alias = strdup(alias);
