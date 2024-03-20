@@ -93,7 +93,7 @@ void printHelp()
     printf("\t-q: not show the intro message\n");
 }
 
-void rewritePrompt(char *userInput, int cursorPosition)
+void clearPrompt(char *userInput, int cursorPosition)
 {
     for (int j = 0; j < cursorPosition; j++)
     {
@@ -107,4 +107,13 @@ void rewritePrompt(char *userInput, int cursorPosition)
     {
         printf("\b"); // clearing the prompt from the old command
     }
+}
+
+void fillPrompt(char *userInput, int *cursorPosition)
+{
+    for (int i = 0; i < strlen(userInput) - 1; i++)
+    {
+        printf("%c", userInput[i]);
+    }
+    *cursorPosition = strlen(userInput) - 1;
 }

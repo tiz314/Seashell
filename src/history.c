@@ -30,7 +30,7 @@ void navigateHistory(__uint128_t *historyNavigationPos, FILE *historyFile, char 
             spaces++;
         counter++;
     }
-    rewritePrompt(userInput, *promptCursor);  // rewriting the prompt
+    clearPrompt(userInput, *promptCursor);  // rewriting the prompt
     strcpy(userInput, historyLine + counter); // copying the command in the user input
     userInput[strlen(userInput) - 1] = 0;     // removing the new line
     *promptCursor = strlen(userInput);

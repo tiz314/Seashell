@@ -3,6 +3,7 @@
 #include "./headers/config.h"
 
 char *executeAndStoreResult(char *partly);
+char *getSubstring(char *str, int start, int len);
 
 int main(int argc, const char *argv[])
 {
@@ -51,7 +52,7 @@ int main(int argc, const char *argv[])
     // end loading config file
 
     // starting all the fancy things
-    system("clear"); // just to clear the cli
+    // system("clear"); // just to clear the cli
 
     if (argc > 1)
     {
@@ -129,10 +130,8 @@ int main(int argc, const char *argv[])
                     if (strlen(userInput) > 0)
                     {
                         strcpy(userInput, result);
-                        rewritePrompt(userInput, i);
-                        for(int i = 0; i < strlen(userInput) - 1; i++){
-                            printf("%c", userInput[i]);
-                        }
+                        clearPrompt(userInput, i);
+                        fillPrompt(userInput, &i);
                     }
                 }
             }
@@ -425,15 +424,6 @@ int main(int argc, const char *argv[])
 
                                 inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (argsNum + newArgs + 1));
                                 inputArgs[argsNum + newArgs] = NULL;
-                                /*printf("%d", argsNum + newArgs);
-
-                                printf("Command found at %s\n", binPath);
-                                int i = 0;
-                                while(inputArgs[i] != NULL){
-                                    printf("%s ", inputArgs[i]);
-                                    i++;
-                                }
-                                printf("\n");*/
 
                                 __pid_t res = fork();
                                 if (res < 0)
@@ -442,7 +432,6 @@ int main(int argc, const char *argv[])
                                 }
                                 else if (res == 0)
                                 {
-
                                     execv(binPath, inputArgs);
                                     exit(0);
                                 }
@@ -483,8 +472,19 @@ char *executeAndStoreResult(char *partly)
     FILE *fp;
     char path[1035];
 
+    int spaces = 0;
+    int lastSpaceIndex = 0;
+    for (int i = 0; i < strlen(partly); i++)
+    {
+        if (partly[i] == ' ')
+        {
+            spaces++;
+            lastSpaceIndex = i;
+        }
+    }
+
     /* Open the command for reading. */
-    fp = popen("ls -1", "r");
+    fp = !spaces ? popen("echo /bin | tr ':' '\n' | xargs -n 1 ls | sort -u", "r") : popen("ls -1", "r");
     if (fp == NULL)
     {
         printf("Failed to run command\n");
@@ -494,15 +494,43 @@ char *executeAndStoreResult(char *partly)
     /* Read the output a line at a time - output it. */
     while (fgets(path, sizeof(path) - 1, fp) != NULL)
     {
-        char *result = strstr(path, partly);
-        if (result != NULL)
+        if (!spaces)
         {
-            pclose(fp);
-            return strdup(path);
+
+            __uint8_t equals = 1;
+            for (int i = 0; i < strlen(partly) && equals; i++)
+            {
+                if (partly[i] != path[i])
+                {
+                    equals = 0;
+                }
+            }
+            if (equals && strcmp(path, partly))
+                return strdup(path);
+        }
+        else
+        {
+            char *result = strstr(path, getSubstring(partly, lastSpaceIndex, strlen(partly) - 2));
+            printf("%s", getSubstring(partly, lastSpaceIndex, strlen(partly) - 2));
+            if (result != NULL && strcmp(path, partly))
+            {
+                pclose(fp);
+                return strdup(path);
+            }
         }
     }
 
     /* close */
     pclose(fp);
     return NULL;
+}
+
+char *getSubstring(char *str, int start, int len)
+{
+    char *result = (char *)malloc(sizeof(char) * (len + 1));
+
+    strncpy(result, &str[start], len);
+    result[len] = '\0';
+
+    return result;
 }

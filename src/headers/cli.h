@@ -10,4 +10,5 @@ void splitInput(char **inputArgs, char *userInput);
 
 void addCharInWord(char *userInput, int i, char new);
 
-void rewritePrompt(char *userInput, int cursorPosition);
+void clearPrompt(char *userInput, int cursorPosition);
+void fillPrompt(char *userInput, int *cursorPosition);
