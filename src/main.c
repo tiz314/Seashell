@@ -2,6 +2,8 @@
 #include "./headers/cli.h"
 #include "./headers/config.h"
 
+char *executeAndStoreResult(char *partly);
+
 int main(int argc, const char *argv[])
 {
     __uint8_t check = 1;                                        // looping in the shell
@@ -116,6 +118,21 @@ int main(int argc, const char *argv[])
                     {
                         userInput[--i] = 0;
                         printf("\b \b");
+                    }
+                }
+            }
+            else if (receivedChar == 9)
+            {
+                char *result = executeAndStoreResult(userInput);
+                if (result != NULL)
+                {
+                    if (strlen(userInput) > 0)
+                    {
+                        strcpy(userInput, result);
+                        rewritePrompt(userInput, i);
+                        for(int i = 0; i < strlen(userInput) - 1; i++){
+                            printf("%c", userInput[i]);
+                        }
                     }
                 }
             }
@@ -459,4 +476,33 @@ int main(int argc, const char *argv[])
     free(binPaths);
 
     return 0;
+}
+
+char *executeAndStoreResult(char *partly)
+{
+    FILE *fp;
+    char path[1035];
+
+    /* Open the command for reading. */
+    fp = popen("ls -1", "r");
+    if (fp == NULL)
+    {
+        printf("Failed to run command\n");
+        exit(1);
+    }
+
+    /* Read the output a line at a time - output it. */
+    while (fgets(path, sizeof(path) - 1, fp) != NULL)
+    {
+        char *result = strstr(path, partly);
+        if (result != NULL)
+        {
+            pclose(fp);
+            return strdup(path);
+        }
+    }
+
+    /* close */
+    pclose(fp);
+    return NULL;
 }
