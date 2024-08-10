@@ -26,17 +26,19 @@ void receiveLine(char *userInput, int size)
     }
 }
 
-int countArgs(char *userInput)
+analyzed countArgs(analyzed inputAnalysis, char *userInput)
 {
-    int counter = 0, check = 1;
+    inputAnalysis.argsNum = 0;
+    int check = 1;
     for (int i = 0; userInput[i] != 0 && check; i++)
     {
         if (userInput[i] == ' ')
         {
-            counter++;
+            inputAnalysis.argsNum++;
         }
     }
-    return ++counter;
+    inputAnalysis.argsNum++;
+    return inputAnalysis;
 }
 
 void splitInput(char **inputArgs, char *userInput)
@@ -52,6 +54,19 @@ void splitInput(char **inputArgs, char *userInput)
         strcpy(inputArgs[i++], tok);
         tok = end;
     }
+}
+
+analyzed findSpecialKeys(char **inputArgs, analyzed inputAnalysis)
+{
+    for (int i = 0; i < inputAnalysis.argsNum; i++)
+    {
+        if (!strcmp(inputArgs[i], ">"))
+        {
+            inputAnalysis.keysPosition[inputAnalysis.specialKeys] = i;
+            inputAnalysis.keysType[inputAnalysis.specialKeys++] = 0;
+        }
+    }
+    return inputAnalysis;
 }
 
 void addCharInWord(char *userInput, int i, char new)

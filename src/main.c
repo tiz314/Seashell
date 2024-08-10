@@ -2,8 +2,9 @@
 #include "./headers/cli.h"
 #include "./headers/config.h"
 
-char *executeAndStoreResult(char *partly);
+void autoComplete(char *partly);
 char *getSubstring(char *str, int start, int len);
+void execCommand(char *userInput, char **inputArgs, analyzed inputAnalysis, char *currentDirectory, __uint8_t pathElements, struct passwd *pw, char **binPaths, FILE *historyFile, char *historyPathname, char *historyLine, alias *aliases, int aliasCount, __uint8_t startIndex, __uint8_t endIndex);
 
 int main(int argc, const char *argv[])
 {
@@ -15,12 +16,10 @@ int main(int argc, const char *argv[])
     binPaths[pathElements - 1] = strdup(BASE_PATH);                  // copying the first path element in the path elements array
 
     char **inputArgs = NULL; // input args buffer, initially empty
-    __uint8_t argsNum;       // counting args number for each input
+    analyzed inputAnalysis;  // counting args number for each input and other shit, such as >, <, |
 
     char currentDirectory[PATH_MAX];
     getcwd(currentDirectory, sizeof(currentDirectory)); // getting working dir
-
-    __uint8_t commandFound = 0;
 
     char hostname[PATH_MAX];
     gethostname(hostname, PATH_MAX);
@@ -84,6 +83,8 @@ int main(int argc, const char *argv[])
     newCommand: // maybe it can be removed, but i'm not sure if I want to do that (hihihi)
         printPrompt(currentDirectory, hostname);
 
+        inputAnalysis.lastIndexExecuted = 0;
+
         for (int j = 0; j < INPUT_SIZE; j++)
         {
             userInput[j] = 0;
@@ -122,18 +123,13 @@ int main(int argc, const char *argv[])
                     }
                 }
             }
-            else if (receivedChar == 9)
+            else if (receivedChar == 9) // tabbing
             {
-                char *result = executeAndStoreResult(userInput);
-                if (result != NULL)
-                {
-                    if (strlen(userInput) > 0)
-                    {
-                        strcpy(userInput, result);
-                        clearPrompt(userInput, i);
-                        fillPrompt(userInput, &i);
-                    }
-                }
+                clearPrompt(userInput, i);
+                autoComplete(userInput);
+                system("stty cooked echo");
+                printf("\n");
+                goto newCommand;
             }
             else if (receivedChar == 126)
             { // if del char is received
@@ -178,7 +174,15 @@ int main(int argc, const char *argv[])
                     else if (receivedChar == 'B')
                     {
                         // Down Arrow
-                        navigateHistory(&historyNavigationPos, historyFile, userInput, &i, historyLength, 0);
+                        if (historyNavigationPos == 1)
+                        {
+                            historyNavigationPos--;
+                            clearPrompt(userInput, i);
+                            userInput[0] = 0;
+                            i = 0;
+                        }
+                        else if (historyNavigationPos > 1)
+                            navigateHistory(&historyNavigationPos, historyFile, userInput, &i, historyLength, 0);
                     }
                     else if (receivedChar == 'C')
                     {
@@ -264,191 +268,28 @@ int main(int argc, const char *argv[])
 
             if (inputArgs != NULL)
             { // if previous commands were run, freeing memory
-                for (int i = 0; i < argsNum; i++)
+                for (int i = 0; i < inputAnalysis.argsNum; i++)
                 {
                     free(inputArgs[i]);
                 }
                 free(inputArgs);
             }
 
-            argsNum = countArgs(userInput); // counting received arguments
-            inputArgs = (char **)calloc(sizeof(char *), argsNum);
+            inputAnalysis = countArgs(inputAnalysis, userInput); // counting received arguments
+            inputArgs = (char **)calloc(sizeof(char *), inputAnalysis.argsNum);
+            splitInput(inputArgs, userInput);                          // actually splitting every word from the command
+            inputAnalysis = findSpecialKeys(inputArgs, inputAnalysis); // just getting info about how many special keywords in the input
 
-            splitInput(inputArgs, userInput);
-
-            if (!strcmp(inputArgs[0], "cd"))
+            if (!inputAnalysis.specialKeys)
             {
-                if (argsNum == 1)
-                {
-                    chdir(pw->pw_dir);
-                }
-                chdir(inputArgs[1]);
-                getcwd(currentDirectory, sizeof(currentDirectory));
+                execCommand(userInput, inputArgs, inputAnalysis, currentDirectory, pathElements, pw, binPaths, historyFile, historyPathname, historyLine, aliases, aliasCount, 0, inputAnalysis.argsNum - 1);
             }
-            else if (!strcmp(inputArgs[0], "path"))
+
+            for (int k = 0; k <= inputAnalysis.specialKeys; k++) // start handling all the special keys
             {
-                for (int i = 1; i < argsNum; i++)
-                {
-                    if (inputArgs[i][0] != '/')
-                    {
-                        printf("Error in arguments\n");
-                        break;
-                    }
-                    else
-                    {
-                        pathElements++;
-                        binPaths = (char **)realloc(binPaths, sizeof(char *) * pathElements);
-                        binPaths[pathElements - 1] = strdup(inputArgs[i]);
-                    }
-                }
+                if (inputAnalysis.keysType[k] == 0)
+                { // if the key is >
 
-                for (int i = 0; i < pathElements; i++)
-                {
-                    printf("%s; ", binPaths[i]);
-                }
-                printf("\n");
-            }
-            else if (!strcmp(inputArgs[0], "history"))
-            {
-                if (argsNum > 1)
-                {
-                    if (!strcmp(inputArgs[1], "-c"))
-                    {
-                        historyFile = fopen(historyPathname, "w");
-                        fclose(historyFile);
-                    }
-                }
-                else
-                {
-                    historyFile = fopen(historyPathname, "r");
-                    if (historyFile != NULL)
-                    {
-                        while (fgets(historyLine, INPUT_SIZE + 30, historyFile))
-                        {
-                            printf("%s", historyLine);
-                        }
-                    }
-                    else
-                    {
-                        printf("No history file was found!\n");
-                    }
-                }
-            }
-            else if (!strcmp(inputArgs[0], "about"))
-            {
-                printWelcome();
-            }
-            else
-            {
-                if (strlen(userInput) > 0)
-                {
-                    if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.') // if the command contains the absolute or relative path
-                    {
-                        if (!access(inputArgs[0], X_OK))
-                        {
-                            __pid_t res = fork();
-                            if (res < 0)
-                            {
-                                printf("Couldn't start command >:(\n");
-                            }
-                            else if (!res)
-                            {
-                                execv(inputArgs[0], inputArgs);
-                            }
-                            else
-                            {
-                                int status;
-                                waitpid(res, &status, 0);
-                            }
-                        }
-                        else
-                        {
-                            printf("%s> Command not found\n", userInput);
-                        }
-                    }
-                    else
-                    {
-
-                        char *realCommand = strdup(getAlias(aliases, aliasCount, inputArgs[0]));
-                        char *realCommandBackup = strdup(realCommand);
-                        char *anotherRealCommandBackup = strdup(realCommand);
-
-                        realCommand = strtok(realCommand, " ");
-
-                        for (int i = 0; i < pathElements && !commandFound; i++) // if only the command name, search in all paths
-                        {
-                            char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(realCommand) + 2)); // creating the asbolute path for the command
-                            strcpy(binPath, binPaths[i]);
-                            strcat(binPath, "/");
-                            strcat(binPath, realCommand);
-
-                            if (!access(binPath, X_OK))
-                            {
-                                commandFound = 1;
-                                int newArgs = 0;
-                                if (strcmp(realCommand, inputArgs[0]))
-                                { // if the received command has an alias, also update the arguments
-
-                                    realCommandBackup = strtok(realCommandBackup, " ");
-                                    while (realCommandBackup != NULL)
-                                    {
-                                        realCommandBackup = strtok(NULL, " ");
-                                        newArgs++;
-                                    }
-                                    char **tempOldArgs = (char **)calloc(sizeof(char *), argsNum);
-                                    for (i = 0; i < argsNum; i++)
-                                    {
-                                        tempOldArgs[i] = strdup(inputArgs[i]);
-                                    }
-                                    inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (newArgs + argsNum - 1));
-                                    anotherRealCommandBackup = strtok(anotherRealCommandBackup, " ");
-
-                                    int i = 0;
-                                    while (anotherRealCommandBackup != NULL)
-                                    {
-                                        inputArgs[i++] = strdup(anotherRealCommandBackup);
-                                        anotherRealCommandBackup = strtok(NULL, " ");
-                                    }
-
-                                    for (int i = 0; i < argsNum - 1; i++)
-                                    {
-                                        inputArgs[i + newArgs] = strdup(tempOldArgs[i + 1]);
-                                    }
-
-                                    for (i = 0; i < argsNum; i++)
-                                    {
-                                        free(tempOldArgs[i]);
-                                    }
-                                    free(tempOldArgs);
-                                }
-
-                                inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (argsNum + newArgs + 1));
-                                inputArgs[argsNum + newArgs] = NULL;
-
-                                __pid_t res = fork();
-                                if (res < 0)
-                                {
-                                    printf("Couldn't start command >:(\n");
-                                }
-                                else if (res == 0)
-                                {
-                                    execv(binPath, inputArgs);
-                                    exit(0);
-                                }
-                                else
-                                {
-                                    int status;
-                                    waitpid(res, &status, 0);
-                                }
-                            }
-                        }
-                        if (!commandFound)
-                        {
-                            printf("%s> Command not found\n", realCommand);
-                        }
-                        else
-                            commandFound = 0;
-                    }
                 }
             }
         }
@@ -467,7 +308,7 @@ int main(int argc, const char *argv[])
     return 0;
 }
 
-char *executeAndStoreResult(char *partly)
+void autoComplete(char *partly)
 {
     FILE *fp;
     char path[1035];
@@ -490,13 +331,11 @@ char *executeAndStoreResult(char *partly)
         printf("Failed to run command\n");
         exit(1);
     }
-
     /* Read the output a line at a time - output it. */
     while (fgets(path, sizeof(path) - 1, fp) != NULL)
     {
-        if (!spaces)
+        if (!spaces) // if the inserted command is not part of a more complex command
         {
-
             __uint8_t equals = 1;
             for (int i = 0; i < strlen(partly) && equals; i++)
             {
@@ -506,7 +345,10 @@ char *executeAndStoreResult(char *partly)
                 }
             }
             if (equals && strcmp(path, partly))
-                return strdup(path);
+            {
+                path[strlen(path) - 1] = 0;
+                printf("%s ", path);
+            }
         }
         else
         {
@@ -515,14 +357,12 @@ char *executeAndStoreResult(char *partly)
             if (result != NULL && strcmp(path, partly))
             {
                 pclose(fp);
-                return strdup(path);
+                path[strlen(path) - 1] = 0;
+                printf("%s ", path);
             }
         }
     }
-
-    /* close */
     pclose(fp);
-    return NULL;
 }
 
 char *getSubstring(char *str, int start, int len)
@@ -533,4 +373,185 @@ char *getSubstring(char *str, int start, int len)
     result[len] = '\0';
 
     return result;
+}
+
+void execCommand(char *userInput, char **inputArgs, analyzed inputAnalysis, char *currentDirectory, __uint8_t pathElements, struct passwd *pw, char **binPaths, FILE *historyFile, char *historyPathname, char *historyLine, alias *aliases, int aliasCount, __uint8_t startIndex, __uint8_t endIndex)
+{
+    __uint8_t commandFound = 0;
+
+    if (!strcmp(inputArgs[0], "cd"))
+    {
+        if (inputAnalysis.argsNum == 1)
+        {
+            chdir(pw->pw_dir);
+        }
+        chdir(inputArgs[1]);
+        getcwd(currentDirectory, sizeof(currentDirectory));
+    }
+    else if (!strcmp(inputArgs[0], "path"))
+    {
+        for (int i = 1; i < inputAnalysis.argsNum; i++)
+        {
+            if (inputArgs[i][0] != '/')
+            {
+                printf("Error in arguments\n");
+                break;
+            }
+            else
+            {
+                pathElements++;
+                binPaths = (char **)realloc(binPaths, sizeof(char *) * pathElements);
+                binPaths[pathElements - 1] = strdup(inputArgs[i]);
+            }
+        }
+
+        for (int i = 0; i < pathElements; i++)
+        {
+            printf("%s; ", binPaths[i]);
+        }
+        printf("\n");
+    }
+    else if (!strcmp(inputArgs[0], "history"))
+    {
+        if (inputAnalysis.argsNum > 1)
+        {
+            if (!strcmp(inputArgs[1], "-c"))
+            {
+                historyFile = fopen(historyPathname, "w");
+                fclose(historyFile);
+            }
+        }
+        else
+        {
+            historyFile = fopen(historyPathname, "r");
+            if (historyFile != NULL)
+            {
+                while (fgets(historyLine, INPUT_SIZE + 30, historyFile))
+                {
+                    printf("%s", historyLine);
+                }
+            }
+            else
+            {
+                printf("No history file was found!\n");
+            }
+        }
+    }
+    else if (!strcmp(inputArgs[0], "about"))
+    {
+        printWelcome();
+    }
+    else
+    {
+        if (strlen(userInput) > 0)
+        {
+            if (inputArgs[0][0] == '/' || inputArgs[0][0] == '.') // if the command contains the absolute or relative path
+            {
+                if (!access(inputArgs[0], X_OK))
+                {
+                    __pid_t res = fork();
+                    if (res < 0)
+                    {
+                        printf("Couldn't start command >:(\n");
+                    }
+                    else if (!res)
+                    {
+                        execv(inputArgs[0], inputArgs);
+                    }
+                    else
+                    {
+                        int status;
+                        waitpid(res, &status, 0);
+                    }
+                }
+                else
+                {
+                    printf("%s> Command not found\n", userInput);
+                }
+            }
+            else
+            {
+
+                char *realCommand = strdup(getAlias(aliases, aliasCount, inputArgs[0]));
+                char *realCommandBackup = strdup(realCommand);
+                char *anotherRealCommandBackup = strdup(realCommand);
+
+                realCommand = strtok(realCommand, " ");
+
+                for (int i = 0; i < pathElements && !commandFound; i++) // if only the command name, search in all paths
+                {
+                    char *binPath = (char *)calloc(sizeof(char), (strlen(binPaths[i]) + strlen(realCommand) + 2)); // creating the asbolute path for the command
+                    strcpy(binPath, binPaths[i]);
+                    strcat(binPath, "/");
+                    strcat(binPath, realCommand);
+
+                    if (!access(binPath, X_OK))
+                    {
+                        commandFound = 1;
+                        int newArgs = 0;
+                        if (strcmp(realCommand, inputArgs[0]))
+                        { // if the received command has an alias, also update the arguments
+
+                            realCommandBackup = strtok(realCommandBackup, " ");
+                            while (realCommandBackup != NULL)
+                            {
+                                realCommandBackup = strtok(NULL, " ");
+                                newArgs++;
+                            }
+                            char **tempOldArgs = (char **)calloc(sizeof(char *), inputAnalysis.argsNum);
+                            for (i = 0; i < inputAnalysis.argsNum; i++)
+                            {
+                                tempOldArgs[i] = strdup(inputArgs[i]);
+                            }
+                            inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (newArgs + inputAnalysis.argsNum - 1));
+                            anotherRealCommandBackup = strtok(anotherRealCommandBackup, " ");
+
+                            int i = 0;
+                            while (anotherRealCommandBackup != NULL)
+                            {
+                                inputArgs[i++] = strdup(anotherRealCommandBackup);
+                                anotherRealCommandBackup = strtok(NULL, " ");
+                            }
+
+                            for (int i = 0; i < inputAnalysis.argsNum - 1; i++)
+                            {
+                                inputArgs[i + newArgs] = strdup(tempOldArgs[i + 1]);
+                            }
+
+                            for (i = 0; i < inputAnalysis.argsNum; i++)
+                            {
+                                free(tempOldArgs[i]);
+                            }
+                            free(tempOldArgs);
+                        }
+
+                        inputArgs = (char **)realloc(inputArgs, sizeof(char *) * (inputAnalysis.argsNum + newArgs + 1));
+                        inputArgs[inputAnalysis.argsNum + newArgs] = NULL;
+
+                        __pid_t res = fork();
+                        if (res < 0)
+                        {
+                            printf("Couldn't start command >:(\n");
+                        }
+                        else if (res == 0)
+                        {
+                            execv(binPath, inputArgs);
+                            exit(0);
+                        }
+                        else
+                        {
+                            int status;
+                            waitpid(res, &status, 0);
+                        }
+                    }
+                }
+                if (!commandFound)
+                {
+                    printf("%s> Command not found\n", realCommand);
+                }
+                else
+                    commandFound = 0;
+            }
+        }
+    }
 }
